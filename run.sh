@@ -15,6 +15,9 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT"
 
+# Make 'src' importable from any working directory
+export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH}"
+
 echo "============================================================"
 echo "  Recommender Systems Final Assignment — full pipeline"
 echo "============================================================"

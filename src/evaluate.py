@@ -8,9 +8,12 @@ Target/seen-item metadata is loaded from artifacts/scores/<model>_<fold>_meta.pk
 from __future__ import annotations
 
 import pickle
+import sys
 import time
 from pathlib import Path
 from typing import Dict
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 
