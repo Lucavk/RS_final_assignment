@@ -1,136 +1,92 @@
-import math
-from collections import defaultdict, Counter
+"""
+Item-item cosine KNN with support-based shrinkage.
+
+Similarity formula (support-weighted cosine):
+    sim(i, j) = cooc(i,j) / (cooc(i,j) + shrinkage) * cosine(i, j)
+
+where:
+    cooc(i,j) = |users who interacted with both i and j|
+    cosine(i,j) = cooc(i,j) / sqrt(pop_i * pop_j)
+
+Combining:
+    sim(i, j) = cooc(i,j)² / ((cooc(i,j) + shrinkage) * sqrt(pop_i * pop_j))
+
+This penalises item pairs with few co-occurrences (reduces noisy high-similarity
+scores between rare items) while retaining standard cosine for popular items.
+
+Score(u) = R[u] @ Sim   (sparse matrix multiply)
+"""
+
+from __future__ import annotations
+
+import numpy as np
+from scipy.sparse import csr_matrix
+
+from src.data import DataBundle
+from src.models.base import Recommender
 
 
-class ItemKNNRecommender:
+class ItemKNNRecommender(Recommender):
     """
-    Item-item co-occurrence recommender.
-
-    Idea:
-    - Items that occur in the same user histories are considered similar.
-    - At prediction time, look at the user's recent items.
-    - Recommend items that are similar to those recent items.
+    Parameters
+    ----------
+    topk : int
+        Number of nearest neighbours to keep per item.  Higher = more coverage,
+        slower scoring, more memory.  Typical range: 50–500.
+    shrinkage : float
+        Denominator shrinkage.  0 = no shrinkage (raw cosine).
+        Higher values penalise rare co-occurrences more.  Typical: 0–500.
     """
 
-    def __init__(
-        self,
-        max_history_items=20,
-        max_neighbors_per_item=200,
-        min_cooc_count=1,
-        fallback_model=None
-    ):
-        self.max_history_items = max_history_items
-        self.max_neighbors_per_item = max_neighbors_per_item
-        self.min_cooc_count = min_cooc_count
-        self.fallback_model = fallback_model
+    def __init__(self, topk: int = 200, shrinkage: float = 100.0):
+        self.topk      = topk
+        self.shrinkage = shrinkage
+        self._sim_matrix  = None   # CSR [n_items × n_items]
+        self._train_matrix = None  # CSR [n_users × n_items]
 
-        self.item_popularity = Counter()
-        self.item_neighbors = {}
+    def fit(self, bundle: DataBundle) -> "ItemKNNRecommender":
+        self._store_id_maps(bundle)
+        R = bundle.train_matrix.astype(np.float32)
+        self._train_matrix = R
+        n_items = bundle.n_items
 
-    def fit(self, train_df):
-        print("Building item popularity...")
-        self.item_popularity = Counter(train_df["item_id"].tolist())
+        print(f"ItemKNN: computing item co-occurrence  ({n_items} × {n_items})…")
+        # G[i,j] = cooc(i,j); diagonal = item popularity
+        G = (R.T @ R).toarray().astype(np.float64)  # dense [n_items × n_items]
 
-        print("Building user histories...")
-        user_histories = (
-            train_df.sort_values(["user_id", "timestamp"])
-                    .groupby("user_id")["item_id"]
-                    .apply(list)
-                    .to_dict()
-        )
+        pop = G.diagonal().copy()                    # [n_items]
 
-        print("Building item-item co-occurrence matrix...")
-        cooc = defaultdict(Counter)
+        print(f"ItemKNN: computing shrinkage-cosine similarity…")
+        # Cosine denominator: sqrt(pop_i * pop_j)
+        denom_cos = np.sqrt(np.outer(pop, pop))
+        denom_cos[denom_cos == 0] = 1.0             # avoid div-by-zero for zero-pop items
 
-        for _, history in user_histories.items():
-            # Remove repeated items while preserving chronological order
-            history = list(dict.fromkeys(history))
+        # Support factor: cooc / (cooc + shrinkage)
+        support = G / (G + self.shrinkage)
 
-            if len(history) < 2:
-                continue
+        sim = support * (G / denom_cos)             # element-wise
 
-            # Use only most recent items to reduce noise and computation
-            recent_history = history[-self.max_history_items:]
+        # No self-similarity
+        np.fill_diagonal(sim, 0.0)
 
-            for i in range(len(recent_history)):
-                item_i = recent_history[i]
+        # Keep only top-k neighbours per item (zero out the rest)
+        if self.topk < n_items - 1:
+            print(f"ItemKNN: pruning to top-{self.topk} neighbours per item…")
+            # Indices of elements we want to ZERO (below top-k)
+            # argpartition gives the indices of the topk largest values at [:topk]
+            part = np.argpartition(-sim, self.topk, axis=1)  # [n_items × n_items]
+            to_zero = part[:, self.topk:]                     # indices to zero
+            rows = np.arange(n_items)[:, None]
+            sim[rows, to_zero] = 0.0
 
-                for j in range(i + 1, len(recent_history)):
-                    item_j = recent_history[j]
-
-                    distance = j - i
-
-                    # Nearby items in the sequence receive stronger weight
-                    weight = 1.0 / math.log2(2.0 + distance)
-
-                    cooc[item_i][item_j] += weight
-                    cooc[item_j][item_i] += weight
-
-        print("Normalizing similarities and keeping top neighbors...")
-        self.item_neighbors = {}
-
-        for item_i, neighbors in cooc.items():
-            scored_neighbors = []
-
-            pop_i = self.item_popularity[item_i]
-
-            for item_j, cooc_score in neighbors.items():
-                if cooc_score < self.min_cooc_count:
-                    continue
-
-                pop_j = self.item_popularity[item_j]
-
-                # Cosine-style normalization
-                sim = cooc_score / math.sqrt(pop_i * pop_j)
-
-                scored_neighbors.append((item_j, sim))
-
-            scored_neighbors.sort(key=lambda x: x[1], reverse=True)
-
-            self.item_neighbors[item_i] = scored_neighbors[:self.max_neighbors_per_item]
-
-        print(f"Built neighbors for {len(self.item_neighbors):,} items.")
-
+        self._sim_matrix = csr_matrix(sim.astype(np.float32))
+        nnz = self._sim_matrix.nnz
+        print(f"ItemKNN: fit complete  (topk={self.topk}, shrinkage={self.shrinkage}, "
+              f"nnz={nnz:,})")
         return self
 
-    def recommend(self, user_id, user_history=None, seen_items=None, k=10):
-        if user_history is None:
-            user_history = []
-
-        if seen_items is None:
-            seen_items = set()
-
-        scores = defaultdict(float)
-
-        recent_history = user_history[-self.max_history_items:]
-
-        # Most recent items should matter more
-        reversed_history = list(reversed(recent_history))
-
-        for position, history_item in enumerate(reversed_history):
-            recency_weight = 1.0 / math.log2(2.0 + position)
-
-            neighbors = self.item_neighbors.get(history_item, [])
-
-            for candidate_item, similarity in neighbors:
-                if candidate_item in seen_items:
-                    continue
-
-                scores[candidate_item] += similarity * recency_weight
-
-        ranked_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-
-        recommendations = [item_id for item_id, _ in ranked_items[:k]]
-
-        # Fill missing slots with popularity fallback
-        if len(recommendations) < k and self.fallback_model is not None:
-            fallback_recs = self.fallback_model.recommend(
-                user_id=user_id,
-                user_history=user_history,
-                seen_items=seen_items.union(set(recommendations)),
-                k=k - len(recommendations)
-            )
-
-            recommendations.extend(fallback_recs)
-
-        return recommendations[:k]
+    def score_users(self, user_idxs: np.ndarray) -> np.ndarray:
+        """Score = R[user_idxs] @ Sim  →  float32 [U × n_items]."""
+        R_sub  = self._train_matrix[user_idxs]      # CSR [U × n_items]
+        scores = R_sub.dot(self._sim_matrix)         # CSR [U × n_items]
+        return np.asarray(scores.todense(), dtype=np.float32)

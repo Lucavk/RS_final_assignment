@@ -21,5 +21,9 @@ pip-delete-this-directory.txt
 # IDEs and editors
 .vscode/
 
+# Artifacts (cached models, scores, optuna studies)
+artifacts/
+*.db
+
 # Environment variables
 .env
