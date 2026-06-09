@@ -43,7 +43,8 @@ np.random.seed(RANDOM_SEED)
 
 def suggest_params(trial, model_name: str) -> dict:
     if model_name == "ease":
-        return {"lam": trial.suggest_float("lam", 50.0, 2000.0, log=True)}
+        # widened lower bound — tuning showed the optimum sits well below 50
+        return {"lam": trial.suggest_float("lam", 5.0, 2000.0, log=True)}
 
     if model_name == "itemknn":
         return {
@@ -53,11 +54,32 @@ def suggest_params(trial, model_name: str) -> dict:
 
     if model_name == "als":
         return {
-            "factors":        trial.suggest_int("factors", 64, 256, step=64),
+            "factors":        trial.suggest_int("factors", 32, 256, step=32),
             "regularization": trial.suggest_float("regularization", 1e-3, 0.2, log=True),
             "alpha":          trial.suggest_float("alpha", 1.0, 100.0, log=True),
             "iterations":     trial.suggest_int("iterations", 15, 60),
         }
+
+    if model_name == "bpr":
+        return {
+            "factors":        trial.suggest_int("factors", 32, 256, step=32),
+            "learning_rate":  trial.suggest_float("learning_rate", 1e-3, 0.1, log=True),
+            "regularization": trial.suggest_float("regularization", 1e-4, 0.1, log=True),
+            "iterations":     trial.suggest_int("iterations", 50, 200, step=25),
+        }
+
+    if model_name == "multvae":
+        return {
+            "latent":  trial.suggest_categorical("latent", [100, 200, 300]),
+            "hidden":  trial.suggest_categorical("hidden", [400, 600, 800]),
+            "dropout": trial.suggest_float("dropout", 0.2, 0.6),
+            "beta":    trial.suggest_float("beta", 0.05, 0.5),
+            "lr":      trial.suggest_float("lr", 3e-4, 3e-3, log=True),
+            "epochs":  trial.suggest_categorical("epochs", [100, 150, 200]),
+        }
+
+    if model_name == "content":
+        return {"topk": trial.suggest_int("topk", 20, 400)}
 
     if model_name == "popularity":
         return {
@@ -186,7 +208,8 @@ def tune(model_name: str, fold_name: str, n_trials: int, timeout: int | None = N
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True,
-                        choices=["popularity", "itemknn", "ease", "als"])
+                        choices=["popularity", "itemknn", "ease", "als",
+                                 "bpr", "multvae", "content"])
     parser.add_argument("--fold",    default="b",    choices=["a", "b"])
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Overrides Config.TUNE_N_TRIALS if provided")

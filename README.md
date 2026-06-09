@@ -59,28 +59,34 @@ Expected runtime: ~2–3 h on M1 Max, ~1 h on the GPU node.
 **Step 1: Tune each model (Fold B, low-variance)**
 
 ```bash
-python src/tune.py --model ease       --fold b --n_trials 15
-python src/tune.py --model itemknn    --fold b --n_trials 40
-python src/tune.py --model als        --fold b --n_trials 50
-python src/tune.py --model popularity --fold b --n_trials 10
+python src/tune.py --model ease       --fold b
+python src/tune.py --model itemknn    --fold b
+python src/tune.py --model als        --fold b
+python src/tune.py --model bpr        --fold b
+python src/tune.py --model multvae    --fold b
+python src/tune.py --model content    --fold b
+python src/tune.py --model popularity --fold b
 ```
 
 Best params are saved to `artifacts/params/<model>_best.json`.  
-Optuna studies persist in `artifacts/optuna/<model>.db` — re-running adds more trials.
+Optuna studies persist in `artifacts/optuna/<model>.db` — re-running adds more trials.  
+Trial counts come from `Config.TUNE_N_TRIALS`; override with `--n_trials N`.
 
-**Step 2: Train on Fold A, cache score matrices**
+**Step 2: Cache score matrices for both folds**
 
 ```bash
-python src/train_all.py --fold a
+python src/train_all.py --fold b   # tuning set for the ensemble (large, low-variance)
+python src/train_all.py --fold a   # faithful check (submission users) + leaderboard
 ```
 
-Prints a leaderboard table (Recall@10, NDCG@10) for all models.  
-Score matrices are cached in `artifacts/scores/`.
+Each prints a Recall@10 / NDCG@10 leaderboard. Scores are cached in `artifacts/scores/`.
 
 **Step 3: Optimise ensemble blend weights**
 
+Weights are tuned on Fold B (many users → robust) and sanity-checked on Fold A:
+
 ```bash
-python src/ensemble/blend.py --fold a --n_trials 200
+python src/ensemble/blend.py --tune_fold b --check_fold a --n_trials 300
 ```
 
 Saves tuned weights to `artifacts/params/ensemble_weights.json`.
@@ -132,14 +138,19 @@ python src/evaluate.py --fold a --models ease als itemknn popularity
 
 ## Model descriptions
 
-| Model | File | Key hyperparameters |
-|-------|------|---------------------|
-| EASE^R | `src/models/ease.py` | `lam` (L2 reg, 50–2000) |
-| Item-item KNN | `src/models/itemknn.py` | `topk` (50–500), `shrinkage` (0–500) |
-| ALS | `src/models/als.py` | `factors`, `regularization`, `alpha`, `iterations` |
-| Popularity | `src/models/popularity.py` | `halflife_days` (recency decay) |
+| Model | File | Signal type | Key hyperparameters |
+|-------|------|-------------|---------------------|
+| EASE^R | `src/models/ease.py` | item-item (closed form) | `lam` (L2 reg) |
+| Item-item KNN | `src/models/itemknn.py` | item-item (co-occurrence) | `topk`, `shrinkage` |
+| ALS | `src/models/als.py` | matrix factorisation (pointwise) | `factors`, `regularization`, `alpha`, `iterations` |
+| BPR | `src/models/bpr.py` | matrix factorisation (pairwise) | `factors`, `learning_rate`, `regularization`, `iterations` |
+| Mult-VAE | `src/models/multvae.py` | neural autoencoder | `latent`, `hidden`, `dropout`, `beta`, `lr`, `epochs` |
+| Content-KNN | `src/models/content_knn.py` | item metadata (TF-IDF) | `topk` |
+| Popularity | `src/models/popularity.py` | global prior / fallback | `halflife_days` (recency decay) |
 
-All content features are derived **only from the provided data** (no external pretrained embeddings).
+The models span **four distinct inductive biases** (item-item, MF, neural, content),
+which maximises ensemble diversity. All content features are derived **only from the
+provided `item_meta.csv`** (TF-IDF) — no external pretrained embeddings (competition rule).
 
 ---
 

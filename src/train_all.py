@@ -101,12 +101,42 @@ def build_model(model_name: str, params: dict | None = None):
             alpha=p.get("alpha", Config.ALS_ALPHA),
             random_state=RANDOM_SEED,
         )
+    if model_name == "bpr":
+        from src.models.bpr import BPRRecommender
+        return BPRRecommender(
+            factors=p.get("factors", Config.BPR_FACTORS),
+            learning_rate=p.get("learning_rate", Config.BPR_LEARNING_RATE),
+            regularization=p.get("regularization", Config.BPR_REGULARIZATION),
+            iterations=p.get("iterations", Config.BPR_ITERATIONS),
+            random_state=RANDOM_SEED,
+        )
+    if model_name == "multvae":
+        from src.models.multvae import MultVAERecommender
+        return MultVAERecommender(
+            hidden=p.get("hidden", Config.VAE_HIDDEN),
+            latent=p.get("latent", Config.VAE_LATENT),
+            dropout=p.get("dropout", Config.VAE_DROPOUT),
+            lr=p.get("lr", Config.VAE_LR),
+            weight_decay=p.get("weight_decay", Config.VAE_WEIGHT_DECAY),
+            batch_size=Config.VAE_BATCH_SIZE,
+            epochs=p.get("epochs", Config.VAE_EPOCHS),
+            beta=p.get("beta", Config.VAE_BETA),
+            anneal_epochs=Config.VAE_ANNEAL_EPOCHS,
+            random_state=RANDOM_SEED,
+        )
+    if model_name == "content":
+        from src.models.content_knn import ContentKNNRecommender
+        return ContentKNNRecommender(
+            topk=p.get("topk", Config.CONTENT_TOPK),
+            max_features=Config.CONTENT_MAX_FEATURES,
+            min_df=Config.CONTENT_MIN_DF,
+        )
     raise ValueError(f"Unknown model: {model_name}")
 
 
 # ── Main training loop ───────────────────────────────────────────────────────
 
-ALL_MODELS = ["popularity", "itemknn", "ease", "als"]
+ALL_MODELS = ["popularity", "itemknn", "ease", "als", "bpr", "multvae", "content"]
 
 
 def run(fold_name: str = "a", model_names: list | None = None, df_full=None,
