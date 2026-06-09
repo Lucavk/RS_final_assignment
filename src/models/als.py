@@ -77,7 +77,7 @@ class ALSRecommender(Recommender):
             regularization=self.regularization,
             iterations=self.iterations,
             random_state=self.random_state,
-            use_gpu=use_gpu,
+            use_gpu=False,
         )
         if use_gpu:
             print(f"  (using GPU: {torch.cuda.get_device_name(0)})")
