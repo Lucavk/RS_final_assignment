@@ -69,13 +69,18 @@ class ALSRecommender(Recommender):
         print(f"ALS: training  (factors={self.factors}, reg={self.regularization}, "
               f"alpha={self.alpha}, iters={self.iterations})…")
 
+        import torch
+        use_gpu = torch.cuda.is_available()
+
         model = AlternatingLeastSquares(
             factors=self.factors,
             regularization=self.regularization,
             iterations=self.iterations,
             random_state=self.random_state,
-            use_gpu=False,          # set True if CUDA is available
+            use_gpu=use_gpu,
         )
+        if use_gpu:
+            print(f"  (using GPU: {torch.cuda.get_device_name(0)})")
         model.fit(confidence, show_progress=True)
 
         self._user_factors = model.user_factors  # float32

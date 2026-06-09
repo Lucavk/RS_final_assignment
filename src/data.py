@@ -62,10 +62,25 @@ def _load_interactions(path: Path) -> pd.DataFrame:
     return df
 
 
+def load_train_only(config) -> pd.DataFrame:
+    """Load only train.csv — used for honest local validation (no time-leak)."""
+    df = _load_interactions(config.TRAIN_PATH)
+    df = (
+        df.sort_values(["user_id", "item_id", "timestamp"])
+          .drop_duplicates(subset=["user_id", "item_id"], keep="last")
+          .sort_values(["user_id", "timestamp"])
+          .reset_index(drop=True)
+    )
+    print(f"Train-only dataset: {len(df):,} interactions | "
+          f"{df['user_id'].nunique():,} users | {df['item_id'].nunique():,} items")
+    return df
+
+
 def load_all_data(config) -> pd.DataFrame:
     """
     Load train.csv + test.csv, combine, deduplicate, and sort.
 
+    Used for the FINAL SUBMISSION only — not for local validation.
     test.csv contains post-cutoff observed interactions (input, not labels).
     Deduplication: for the same (user, item) pair, keep the most recent event.
     """

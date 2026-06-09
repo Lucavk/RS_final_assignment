@@ -33,6 +33,7 @@ from src.data import (
     build_bundle,
     build_id_maps,
     load_all_data,
+    load_train_only,
     load_submission_user_ids,
 )
 from src.splits import fold_a, fold_b, val_targets_to_arrays
@@ -108,17 +109,26 @@ def build_model(model_name: str, params: dict | None = None):
 ALL_MODELS = ["popularity", "itemknn", "ease", "als"]
 
 
-def run(fold_name: str = "a", model_names: list | None = None, df_full=None) -> dict:
+def run(fold_name: str = "a", model_names: list | None = None, df_full=None,
+        train_only: bool = True) -> dict:
     """
     Train each model on the given fold, cache score matrices, return metrics.
+
+    train_only : if True (default), use only train.csv for validation —
+                 avoids the temporal information leak from test.csv.
+                 submit.py always uses the full combined data.
     """
     if model_names is None:
         model_names = ALL_MODELS
 
     # ── Data ──────────────────────────────────────────────────────────────────
     if df_full is None:
-        print("Loading data…")
-        df_full = load_all_data(Config)
+        if train_only:
+            print("Loading train.csv only (honest local validation)…")
+            df_full = load_train_only(Config)
+        else:
+            print("Loading combined train+test data…")
+            df_full = load_all_data(Config)
 
     sub_ids = load_submission_user_ids(Config)
     user_to_idx, idx_to_user, item_to_idx, idx_to_item = build_id_maps(df_full)
@@ -137,6 +147,9 @@ def run(fold_name: str = "a", model_names: list | None = None, df_full=None) -> 
     train_bundle = build_bundle(
         train_df, user_to_idx, idx_to_user, item_to_idx, idx_to_item, sub_ids
     )
+
+    if train_only:
+        print("  (validation trained on train.csv only — honest estimate, no time-leak)")
 
     # Align val_targets with matrix indices
     eval_user_idxs, target_item_idxs = val_targets_to_arrays(
@@ -195,11 +208,13 @@ def run(fold_name: str = "a", model_names: list | None = None, df_full=None) -> 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fold",   default="a", choices=["a", "b"])
-    parser.add_argument("--models", nargs="+",   default=None,
+    parser.add_argument("--fold",       default="a", choices=["a", "b"])
+    parser.add_argument("--models",     nargs="+",   default=None,
                         help="Subset of models to train (default: all)")
+    parser.add_argument("--combined",   action="store_true",
+                        help="Use train+test combined (inflates local score — don't use)")
     args = parser.parse_args()
-    run(fold_name=args.fold, model_names=args.models)
+    run(fold_name=args.fold, model_names=args.models, train_only=not args.combined)
 
 
 if __name__ == "__main__":

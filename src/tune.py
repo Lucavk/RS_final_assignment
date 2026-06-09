@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 
 from src.config import Config, RANDOM_SEED
-from src.data import build_bundle, build_id_maps, load_all_data, load_submission_user_ids
+from src.data import build_bundle, build_id_maps, load_all_data, load_train_only, load_submission_user_ids
 from src.splits import fold_a, fold_b, val_targets_to_arrays
 from src.metrics import compute_metrics
 
@@ -103,8 +103,8 @@ def tune(model_name: str, fold_name: str, n_trials: int, timeout: int | None = N
 
     # ── Data ──────────────────────────────────────────────────────────────────
     print(f"\nTuning {model_name.upper()}  (fold={fold_name}, trials={n_trials})")
-    print("Loading data…")
-    df_full = load_all_data(Config)
+    print("Loading train.csv only (honest validation)…")
+    df_full = load_train_only(Config)  # no time-leak from test.csv
     sub_ids = load_submission_user_ids(Config)
     user_to_idx, idx_to_user, item_to_idx, idx_to_item = build_id_maps(df_full)
 
