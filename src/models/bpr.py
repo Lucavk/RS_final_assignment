@@ -60,10 +60,9 @@ class BPRRecommender(Recommender):
 
         self._store_id_maps(bundle)
 
-        import torch
-        use_gpu = torch.cuda.is_available()
-
-        print(f"BPR: training  (factors={self.factors}, lr={self.learning_rate}, "
+        # implicit's GPU BPR needs RMM (RAPIDS) which isn't installed here;
+        # CPU is plenty fast for this dataset size.
+        print(f"BPR: training on CPU  (factors={self.factors}, lr={self.learning_rate}, "
               f"reg={self.regularization}, iters={self.iterations})…")
 
         model = BayesianPersonalizedRanking(
@@ -72,7 +71,7 @@ class BPRRecommender(Recommender):
             regularization=self.regularization,
             iterations=self.iterations,
             random_state=self.random_state,
-            use_gpu=use_gpu,
+            use_gpu=False,
         )
         model.fit(bundle.train_matrix, show_progress=True)
 
