@@ -131,12 +131,37 @@ def build_model(model_name: str, params: dict | None = None):
             max_features=Config.CONTENT_MAX_FEATURES,
             min_df=Config.CONTENT_MIN_DF,
         )
+    if model_name == "lightgcn":
+        from src.models.lightgcn import LightGCNRecommender
+        return LightGCNRecommender(
+            embedding_dim=p.get("embedding_dim", Config.LIGHTGCN_DIM),
+            num_layers=p.get("num_layers", Config.LIGHTGCN_LAYERS),
+            epochs=p.get("epochs", Config.LIGHTGCN_EPOCHS),
+            batch_size=Config.LIGHTGCN_BATCH_SIZE,
+            lr=p.get("lr", Config.LIGHTGCN_LR),
+            weight_decay=p.get("weight_decay", Config.LIGHTGCN_WEIGHT_DECAY),
+            random_state=RANDOM_SEED,
+        )
+    if model_name == "bert4rec":
+        from src.models.bert4rec import Bert4RecRecommender
+        return Bert4RecRecommender(
+            max_seq_len=p.get("max_seq_len", Config.BERT4REC_MAX_SEQ_LEN),
+            embedding_dim=p.get("embedding_dim", Config.BERT4REC_DIM),
+            num_heads=Config.BERT4REC_HEADS,
+            num_layers=p.get("num_layers", Config.BERT4REC_LAYERS),
+            dropout=p.get("dropout", Config.BERT4REC_DROPOUT),
+            epochs=p.get("epochs", Config.BERT4REC_EPOCHS),
+            batch_size=Config.BERT4REC_BATCH_SIZE,
+            lr=p.get("lr", Config.BERT4REC_LR),
+            random_state=RANDOM_SEED,
+        )
     raise ValueError(f"Unknown model: {model_name}")
 
 
 # ── Main training loop ───────────────────────────────────────────────────────
 
-ALL_MODELS = ["popularity", "itemknn", "ease", "als", "bpr", "multvae", "content"]
+ALL_MODELS = ["popularity", "itemknn", "ease", "als", "bpr", "multvae",
+              "content", "lightgcn", "bert4rec"]
 
 
 def run(fold_name: str = "a", model_names: list | None = None, df_full=None,

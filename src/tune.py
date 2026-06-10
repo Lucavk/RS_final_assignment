@@ -81,6 +81,25 @@ def suggest_params(trial, model_name: str) -> dict:
     if model_name == "content":
         return {"topk": trial.suggest_int("topk", 20, 400)}
 
+    if model_name == "lightgcn":
+        return {
+            "embedding_dim": trial.suggest_categorical("embedding_dim", [64, 128, 192]),
+            "num_layers":    trial.suggest_int("num_layers", 1, 4),
+            "epochs":        trial.suggest_categorical("epochs", [20, 30, 50]),
+            "lr":            trial.suggest_float("lr", 3e-4, 5e-3, log=True),
+            "weight_decay":  trial.suggest_float("weight_decay", 1e-7, 1e-4, log=True),
+        }
+
+    if model_name == "bert4rec":
+        return {
+            "embedding_dim": trial.suggest_categorical("embedding_dim", [64, 128]),
+            "num_layers":    trial.suggest_int("num_layers", 1, 3),
+            "dropout":       trial.suggest_float("dropout", 0.1, 0.5),
+            "epochs":        trial.suggest_categorical("epochs", [20, 30, 40]),
+            "lr":            trial.suggest_float("lr", 3e-4, 3e-3, log=True),
+            "max_seq_len":   trial.suggest_categorical("max_seq_len", [20, 30, 50]),
+        }
+
     if model_name == "popularity":
         return {
             "halflife_days": trial.suggest_float("halflife_days", 30.0, 3650.0, log=True),
@@ -209,7 +228,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True,
                         choices=["popularity", "itemknn", "ease", "als",
-                                 "bpr", "multvae", "content"])
+                                 "bpr", "multvae", "content", "lightgcn", "bert4rec"])
     parser.add_argument("--fold",    default="b",    choices=["a", "b"])
     parser.add_argument("--n_trials", type=int, default=None,
                         help="Overrides Config.TUNE_N_TRIALS if provided")

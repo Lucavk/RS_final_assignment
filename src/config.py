@@ -63,6 +63,24 @@ class Config:
     CONTENT_MAX_FEATURES = 30000   # TF-IDF vocabulary cap
     CONTENT_MIN_DF = 2
 
+    # ── LightGCN (graph, PyTorch) ────────────────────────────────────
+    LIGHTGCN_DIM = 128
+    LIGHTGCN_LAYERS = 2
+    LIGHTGCN_EPOCHS = 30
+    LIGHTGCN_BATCH_SIZE = 2048
+    LIGHTGCN_LR = 1e-3
+    LIGHTGCN_WEIGHT_DECAY = 1e-6
+
+    # ── BERT4Rec (sequential, PyTorch) ───────────────────────────────
+    BERT4REC_MAX_SEQ_LEN = 20
+    BERT4REC_DIM = 128
+    BERT4REC_HEADS = 4
+    BERT4REC_LAYERS = 2
+    BERT4REC_DROPOUT = 0.2
+    BERT4REC_EPOCHS = 20
+    BERT4REC_BATCH_SIZE = 512
+    BERT4REC_LR = 1e-3
+
     # ── Tuning ───────────────────────────────────────────────────────
     # Optuna time limits per model (seconds)
     TUNE_TIMEOUT = {
@@ -73,6 +91,8 @@ class Config:
         "bpr":        1800,
         "multvae":    3600,
         "content":    1200,
+        "lightgcn":   3600,
+        "bert4rec":   3600,
     }
     TUNE_N_TRIALS = {
         "popularity": 10,
@@ -82,6 +102,8 @@ class Config:
         "bpr":        40,
         "multvae":    20,
         "content":    10,   # only `topk` varies; sim matrix rebuilt each trial
+        "lightgcn":   15,
+        "bert4rec":   12,
     }
     # Fold used as the Optuna objective ("a" = submission LOO, "b" = global LOO)
     TUNE_FOLD = "b"
@@ -89,7 +111,7 @@ class Config:
     # ── Ensemble ─────────────────────────────────────────────────────
     # All trained models; subset via --models on the CLI.
     ENSEMBLE_MODELS = ["ease", "als", "itemknn", "popularity",
-                       "bpr", "multvae", "content"]
+                       "bpr", "multvae", "content", "lightgcn", "bert4rec"]
     ENSEMBLE_RRF_K = 60        # RRF constant (60 is the standard default)
     # Fold for ensemble weight tuning. "b" = robust (many users), "a" = faithful.
     ENSEMBLE_TUNE_FOLD = "b"

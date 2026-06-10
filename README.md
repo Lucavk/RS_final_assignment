@@ -174,12 +174,12 @@ src/
   train_all.py       train models, cache score matrices
   tune.py            Optuna driver
   submit.py          final submission generator
-artifacts/           (gitignored, created automatically)
+artifacts/           
   scores/            cached score matrices (.npy)
   params/            best hyperparams (.json)
   optuna/            Optuna SQLite databases (.db)
 data/
-  submission.csv     output (upload to Kaggle)
+  submission.csv     output 
 ```
 
 ---
