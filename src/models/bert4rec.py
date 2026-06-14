@@ -9,6 +9,7 @@ from src.config import RANDOM_SEED
 from src.data import DataBundle
 from src.models.base import Recommender
 
+
 class _SeqDataset(Dataset):
     def __init__(self, sequences, targets, max_len, mask_idx, pad_idx):
         self.sequences = sequences
@@ -27,11 +28,13 @@ class _SeqDataset(Dataset):
             seq = [self.pad_idx] * pad + seq
         return torch.tensor(seq, dtype=torch.long), torch.tensor(self.targets[idx], dtype=torch.long)
 
+
 class _Bert4RecNet(nn.Module):
     def __init__(self, num_items, max_len=20, dim=128, heads=4, layers=2, dropout=0.2, pad_idx=0):
         super().__init__()
         self.pad_idx = pad_idx
-        self.item_embedding = nn.Embedding(num_items + 2, dim, padding_idx=pad_idx)
+        self.item_embedding = nn.Embedding(
+            num_items + 2, dim, padding_idx=pad_idx)
         self.position_embedding = nn.Embedding(max_len, dim)
         enc = nn.TransformerEncoderLayer(
             d_model=dim, nhead=heads, dim_feedforward=dim * 4,
@@ -46,11 +49,14 @@ class _Bert4RecNet(nn.Module):
 
     def forward(self, seqs):
         bsz, slen = seqs.shape
-        pos = torch.arange(slen, device=seqs.device).unsqueeze(0).expand(bsz, slen)
+        pos = torch.arange(slen, device=seqs.device).unsqueeze(
+            0).expand(bsz, slen)
         x = self.item_embedding(seqs) + self.position_embedding(pos)
         pad_mask = seqs.eq(self.pad_idx)
         enc = self.encoder(x, src_key_padding_mask=pad_mask)
-        return self.output_layer(enc[:, -1, :])   # logits at the [MASK] position
+        # logits at the [MASK] position
+        return self.output_layer(enc[:, -1, :])
+
 
 class Bert4RecRecommender(Recommender):
 
@@ -95,7 +101,8 @@ class Bert4RecRecommender(Recommender):
         self._mask_idx = n_items + 1
         self._sequences = bundle.user_sequences
 
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         print(f"Bert4Rec: training on {self._device}  "
               f"(dim={self.embedding_dim}, layers={self.num_layers}, epochs={self.epochs})…")
 
@@ -111,7 +118,8 @@ class Bert4RecRecommender(Recommender):
         print(f"  {len(sequences):,} training sequences")
 
         loader = DataLoader(
-            _SeqDataset(sequences, targets, self.max_seq_len, self._mask_idx, self._pad_idx),
+            _SeqDataset(sequences, targets, self.max_seq_len,
+                        self._mask_idx, self._pad_idx),
             batch_size=self.batch_size, shuffle=True, num_workers=0,
         )
 
@@ -119,7 +127,8 @@ class Bert4RecRecommender(Recommender):
             n_items, self.max_seq_len, self.embedding_dim,
             self.num_heads, self.num_layers, self.dropout, self._pad_idx,
         ).to(self._device)
-        opt = torch.optim.AdamW(self._model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        opt = torch.optim.AdamW(self._model.parameters(
+        ), lr=self.lr, weight_decay=self.weight_decay)
         criterion = nn.CrossEntropyLoss(ignore_index=self._pad_idx)
 
         self._model.train()
@@ -134,7 +143,8 @@ class Bert4RecRecommender(Recommender):
                 total += loss.item() * tgts.size(0)
                 n += tgts.size(0)
             if epoch % 5 == 0 or epoch == 1:
-                print(f"  epoch {epoch:02d}/{self.epochs}  CE loss={total / n:.6f}")
+                print(
+                    f"  epoch {epoch:02d}/{self.epochs}  CE loss={total / n:.6f}")
 
         self._model.eval()
         print("Bert4Rec: fit complete")
@@ -143,7 +153,8 @@ class Bert4RecRecommender(Recommender):
     def _build_input(self, u_idx):
         # Build one masked sequence for a user.
         hist = self._sequences.get(u_idx, [])
-        internal = [g + 1 for g in hist][-(self.max_seq_len - 1):] + [self._mask_idx]
+        internal = [
+            g + 1 for g in hist][-(self.max_seq_len - 1):] + [self._mask_idx]
         pad = self.max_seq_len - len(internal)
         if pad > 0:
             internal = [self._pad_idx] * pad + internal

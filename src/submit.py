@@ -1,4 +1,9 @@
 from __future__ import annotations
+from src.train_all import build_model
+from src.data import build_bundle, build_id_maps, load_all_data, load_submission_user_ids
+from src.config import Config, RANDOM_SEED
+import pandas as pd
+import numpy as np
 
 import argparse
 import json
@@ -8,12 +13,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np
-import pandas as pd
-
-from src.config import Config, RANDOM_SEED
-from src.data import build_bundle, build_id_maps, load_all_data, load_submission_user_ids
-from src.train_all import build_model
 
 np.random.seed(RANDOM_SEED)
 
@@ -55,7 +54,7 @@ def top_k_with_fallback(
 
     for i in range(n_users):
         scores = blended_scores[i].copy()
-        seen   = user_seen_idxs[i]
+        seen = user_seen_idxs[i]
 
         if seen:
             scores[list(seen)] = -np.inf
@@ -107,7 +106,8 @@ def run(model_names: list | None = None):
         [user_to_idx[u] for u in sub_ids if u in user_to_idx],
         dtype=np.int32,
     )
-    print(f"  submission users found in data: {len(sub_idxs):,}/{len(sub_ids):,}")
+    print(
+        f"  submission users found in data: {len(sub_idxs):,}/{len(sub_ids):,}")
 
     # Filter recommendations against each user's full history
     user_seen_idxs = [
@@ -116,8 +116,8 @@ def run(model_names: list | None = None):
     ]
 
     score_matrices = []
-    model_weights  = []
-    pop_scores     = None
+    model_weights = []
+    pop_scores = None
 
     for model_name in model_names:
         print(f"\n{'-'*40}")
@@ -150,7 +150,8 @@ def run(model_names: list | None = None):
         with open(weights_path) as f:
             weights_dict = json.load(f)
         model_weights = [weights_dict.get(m, 1.0) for m in model_names]
-        print(f"\nLoaded ensemble weights: {dict(zip(model_names, model_weights))}")
+        print(
+            f"\nLoaded ensemble weights: {dict(zip(model_names, model_weights))}")
     else:
         print(f"\nUsing equal weights (no {weights_path} found)")
 
@@ -159,7 +160,8 @@ def run(model_names: list | None = None):
         pop_scores = np.asarray(full_bundle.train_matrix.sum(axis=0)).ravel()
 
     print("\nBlending scores via RRF...")
-    blended = rrf_blend(score_matrices, model_weights, rrf_k=Config.ENSEMBLE_RRF_K)
+    blended = rrf_blend(score_matrices, model_weights,
+                        rrf_k=Config.ENSEMBLE_RRF_K)
 
     print("Extracting top-10 recommendations...")
     recs_list = top_k_with_fallback(
@@ -179,8 +181,10 @@ def run(model_names: list | None = None):
         if not recs:
             # Use global popularity for cold users
             pop_order = np.argsort(-pop_scores)
-            seen = full_bundle.user_seen_idxs.get(user_to_idx.get(uid, -1), set())
-            recs = [idx_to_item[i] for i in pop_order if i not in seen][:Config.K]
+            seen = full_bundle.user_seen_idxs.get(
+                user_to_idx.get(uid, -1), set())
+            recs = [idx_to_item[i]
+                    for i in pop_order if i not in seen][:Config.K]
         return ",".join(str(r) for r in recs[:Config.K])
 
     sub_df["item_id"] = sub_df["user_id"].apply(_format_recs)
@@ -198,7 +202,8 @@ def run(model_names: list | None = None):
             f"User {row['user_id']} has {len(items)} recs (expected {Config.K})"
         assert len(set(items)) == Config.K, \
             f"Duplicate items for user {row['user_id']}"
-    print(f"  OK: {len(sub_df):,} rows, all with exactly {Config.K} unique items")
+    print(
+        f"  OK: {len(sub_df):,} rows, all with exactly {Config.K} unique items")
     print("Ready to submit!")
 
 

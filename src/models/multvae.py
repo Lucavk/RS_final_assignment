@@ -6,11 +6,13 @@ from src.config import RANDOM_SEED
 from src.data import DataBundle
 from src.models.base import Recommender
 
+
 def _get_torch():
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
     return torch, nn, F
+
 
 class MultVAERecommender(Recommender):
 
@@ -72,7 +74,7 @@ class MultVAERecommender(Recommender):
                     std = torch.exp(0.5 * logvar)
                     z = mu + std * torch.randn_like(std)
                 else:
-                    z = mu # deterministic at inference
+                    z = mu  # deterministic at inference
                 h = torch.tanh(self.dec1(z))
                 return self.dec2(h), mu, logvar
 
@@ -88,7 +90,8 @@ class MultVAERecommender(Recommender):
         self._train_matrix = bundle.train_matrix.tocsr()
         n_users, n_items = self._train_matrix.shape
 
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         print(f"Mult-VAE: training on {self._device}  "
               f"(hidden={self.hidden}, latent={self.latent}, epochs={self.epochs})…")
 
@@ -97,7 +100,8 @@ class MultVAERecommender(Recommender):
                                lr=self.lr, weight_decay=self.weight_decay)
 
         # Only train on users with history.
-        active_users = np.where(np.asarray(self._train_matrix.sum(axis=1)).ravel() > 0)[0]
+        active_users = np.where(np.asarray(
+            self._train_matrix.sum(axis=1)).ravel() > 0)[0]
 
         step = 0
         total_anneal_steps = max(1, self.anneal_epochs *
@@ -117,7 +121,8 @@ class MultVAERecommender(Recommender):
                 log_softmax = F.log_softmax(logits, dim=1)
                 # Main reconstruction loss.
                 nll = -(log_softmax * x).sum(dim=1).mean()
-                kld = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=1).mean()
+                kld = -0.5 * (1 + logvar - mu.pow(2) -
+                              logvar.exp()).sum(dim=1).mean()
 
                 beta = min(self.beta, self.beta * step / total_anneal_steps)
                 loss = nll + beta * kld

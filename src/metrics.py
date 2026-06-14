@@ -29,9 +29,9 @@ def recall_at_k(
     k: int = 10,
 ) -> float:
     # Fraction of users whose single target is in the top-k
-    scores  = _mask_seen(score_matrix, user_seen_idxs)
-    top_k   = _top_k_indices(scores, k)
-    hits    = sum(
+    scores = _mask_seen(score_matrix, user_seen_idxs)
+    top_k = _top_k_indices(scores, k)
+    hits = sum(
         target_item_idxs[i] in top_k[i]
         for i in range(len(target_item_idxs))
     )
@@ -45,10 +45,10 @@ def ndcg_at_k(
     k: int = 10,
 ) -> float:
     # Single-positive NDCG@k
-    scores  = _mask_seen(score_matrix, user_seen_idxs)
+    scores = _mask_seen(score_matrix, user_seen_idxs)
     # Full sort is needed to get the exact target rank
-    ranked  = np.argsort(-scores, axis=1)
-    total   = 0.0
+    ranked = np.argsort(-scores, axis=1)
+    total = 0.0
     for i, target in enumerate(target_item_idxs):
         rank_arr = np.where(ranked[i] == target)[0]
         if rank_arr.size == 0:
@@ -67,7 +67,7 @@ def compute_metrics(
 ) -> Dict[str, float]:
     # Compute Recall@k and NDCG@k together
     scores = _mask_seen(score_matrix, user_seen_idxs)
-    top_k  = _top_k_indices(scores, k)
+    top_k = _top_k_indices(scores, k)
 
     hits = 0
     ndcg = 0.0
@@ -96,9 +96,9 @@ class RankingMetrics:
     def recall_at_k(model, val_targets, user_histories, user_seen_items, k=10):
         hits = total = 0
         for user_id, target_item in val_targets.items():
-            history   = user_histories.get(user_id, [])
-            seen      = user_seen_items.get(user_id, set())
-            recs      = model.recommend(user_id, history, seen, k)
+            history = user_histories.get(user_id, [])
+            seen = user_seen_items.get(user_id, set())
+            recs = model.recommend(user_id, history, seen, k)
             if target_item in recs[:k]:
                 hits += 1
             total += 1

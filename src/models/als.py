@@ -10,6 +10,7 @@ from src.models.base import Recommender
 
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
+
 class ALSRecommender(Recommender):
 
     def __init__(
@@ -20,11 +21,11 @@ class ALSRecommender(Recommender):
         alpha: float = 20.0,
         random_state: int = 42,
     ):
-        self.factors        = factors
+        self.factors = factors
         self.regularization = regularization
-        self.iterations     = iterations
-        self.alpha          = alpha
-        self.random_state   = random_state
+        self.iterations = iterations
+        self.alpha = alpha
+        self.random_state = random_state
 
         self._user_factors: np.ndarray | None = None
         self._item_factors: np.ndarray | None = None
@@ -34,7 +35,8 @@ class ALSRecommender(Recommender):
         try:
             from implicit.als import AlternatingLeastSquares
         except ImportError as e:
-            raise ImportError("Install 'implicit':  pip install implicit") from e
+            raise ImportError(
+                "Install 'implicit':  pip install implicit") from e
 
         self._store_id_maps(bundle)
         self._train_matrix = bundle.train_matrix

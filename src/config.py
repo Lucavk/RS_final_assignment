@@ -15,8 +15,6 @@ class Config:
     SUBMISSION_OUT_PATH = DATA_DIR / "submission.csv"
 
     ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
-    # Score matrices are large (~1.2 GB each for Fold B). Redirect them to a
-    # scratch disk with space via:  export RS_SCORES_DIR=/local/<user>/rs_scores
     SCORES_DIR = Path(os.environ.get("RS_SCORES_DIR", str(ARTIFACTS_DIR / "scores")))
     PARAMS_DIR = ARTIFACTS_DIR / "params"
     OPTUNA_DIR = ARTIFACTS_DIR / "optuna"

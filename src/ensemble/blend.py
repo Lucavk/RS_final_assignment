@@ -1,4 +1,7 @@
 from __future__ import annotations
+from src.evaluate import load_scores
+from src.config import Config, RANDOM_SEED
+import numpy as np
 
 import argparse
 import json
@@ -7,10 +10,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import numpy as np
-
-from src.config import Config, RANDOM_SEED
-from src.evaluate import load_scores
 
 np.random.seed(RANDOM_SEED)
 
@@ -21,9 +20,10 @@ def precompute_rrf(score_matrices: list[np.ndarray], rrf_k: int = 60) -> list[np
     # Turn model scores into rank scores once, so tuning is faster.
     rrf_list = []
     for mat in score_matrices:
-        order = np.argsort(-mat, axis=1)                  # item idx by descending score
+        # item idx by descending score
+        order = np.argsort(-mat, axis=1)
         ranks = np.empty_like(order)
-        rows  = np.arange(mat.shape[0])[:, None]
+        rows = np.arange(mat.shape[0])[:, None]
         ranks[rows, order] = np.arange(1, mat.shape[1] + 1)
         rrf_list.append((1.0 / (rrf_k + ranks)).astype(np.float32))
     return rrf_list
@@ -36,7 +36,8 @@ def fast_recall(blended, target_item_idxs, user_seen_idxs, k=10) -> float:
         if seen:
             scores[row, list(seen)] = -np.inf
     top_k = np.argpartition(-scores, k, axis=1)[:, :k]
-    hits = sum(target_item_idxs[i] in top_k[i] for i in range(len(target_item_idxs)))
+    hits = sum(target_item_idxs[i] in top_k[i]
+               for i in range(len(target_item_idxs)))
     return hits / len(target_item_idxs) if target_item_idxs else 0.0
 
 
@@ -71,8 +72,8 @@ def optimise_weights(model_names, tune_fold="b", check_fold="a",
         rng = np.random.default_rng(RANDOM_SEED)
         sel = rng.choice(n_eval, max_eval_users, replace=False)
         tune_scores = [s[sel] for s in tune_scores]
-        targets     = [targets[i] for i in sel]
-        seen        = [seen[i] for i in sel]
+        targets = [targets[i] for i in sel]
+        seen = [seen[i] for i in sel]
         print(f"  subsampled to {max_eval_users:,} eval users")
 
     rrf_tune = precompute_rrf(tune_scores, Config.ENSEMBLE_RRF_K)
@@ -87,16 +88,20 @@ def optimise_weights(model_names, tune_fold="b", check_fold="a",
         direction="maximize",
         sampler=optuna.samplers.TPESampler(seed=RANDOM_SEED),
     )
-    study.enqueue_trial({f"w_{m}": 1.0 for m in model_names})   # Start with equal weights.
-    print(f"Tuning {len(model_names)} weights over {n_trials} trials on Fold {tune_fold.upper()}…")
+    # Start with equal weights.
+    study.enqueue_trial({f"w_{m}": 1.0 for m in model_names})
+    print(
+        f"Tuning {len(model_names)} weights over {n_trials} trials on Fold {tune_fold.upper()}…")
     study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
 
     best_weights = {m: study.best_params[f"w_{m}"] for m in model_names}
-    eq_score = fast_recall(blend_weighted(rrf_tune, [1.0]*len(model_names)), targets, seen)
+    eq_score = fast_recall(blend_weighted(
+        rrf_tune, [1.0]*len(model_names)), targets, seen)
 
     print(f"\nFold {tune_fold.upper()} tuning")
     print(f"  equal weights : recall@10={eq_score:.6f}")
-    print(f"  tuned weights : recall@10={study.best_value:.6f}  (+{(study.best_value-eq_score)*100:.3f} pp)")
+    print(
+        f"  tuned weights : recall@10={study.best_value:.6f}  (+{(study.best_value-eq_score)*100:.3f} pp)")
     print(f"  weights: { {m: round(w,3) for m,w in best_weights.items()} }")
 
     # Check the weights on the other fold as a simple safety check.
@@ -108,7 +113,8 @@ def optimise_weights(model_names, tune_fold="b", check_fold="a",
             if c_targets is None:
                 c_targets, c_seen = t, se
         rrf_check = precompute_rrf(check_scores, Config.ENSEMBLE_RRF_K)
-        eq_a   = fast_recall(blend_weighted(rrf_check, [1.0]*len(model_names)), c_targets, c_seen)
+        eq_a = fast_recall(blend_weighted(
+            rrf_check, [1.0]*len(model_names)), c_targets, c_seen)
         best_a = fast_recall(blend_weighted(rrf_check, [best_weights[m] for m in model_names]),
                              c_targets, c_seen)
         # Also show the best single model for comparison.
@@ -120,9 +126,11 @@ def optimise_weights(model_names, tune_fold="b", check_fold="a",
             print(f"  {m:<12} recall@10={singles[m]:.6f}")
         print(f"  equal-weight ensemble : recall@10={eq_a:.6f}")
         print(f"  tuned-weight ensemble : recall@10={best_a:.6f}")
-        print(f"  best single ({best_single}) : recall@10={singles[best_single]:.6f}")
+        print(
+            f"  best single ({best_single}) : recall@10={singles[best_single]:.6f}")
     except FileNotFoundError:
-        print(f"\n(no Fold {check_fold.upper()} scores cached — skipping faithful check)")
+        print(
+            f"\n(no Fold {check_fold.upper()} scores cached — skipping faithful check)")
 
     # Save the weights so submit.py can use them.
     Config.PARAMS_DIR.mkdir(parents=True, exist_ok=True)
@@ -135,8 +143,10 @@ def optimise_weights(model_names, tune_fold="b", check_fold="a",
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--models",   nargs="+", default=Config.ENSEMBLE_MODELS)
-    parser.add_argument("--tune_fold",  default=Config.ENSEMBLE_TUNE_FOLD, choices=["a", "b"])
+    parser.add_argument("--models",   nargs="+",
+                        default=Config.ENSEMBLE_MODELS)
+    parser.add_argument(
+        "--tune_fold",  default=Config.ENSEMBLE_TUNE_FOLD, choices=["a", "b"])
     parser.add_argument("--check_fold", default="a", choices=["a", "b"])
     parser.add_argument("--n_trials", type=int, default=300)
     parser.add_argument("--max_eval_users", type=int, default=10000)

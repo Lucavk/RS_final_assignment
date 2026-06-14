@@ -1,19 +1,18 @@
-from pathlib import Path
-import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(PROJECT_ROOT))
-
-from src.config import Config
+from src.models.als import ALSRecommender
+from src.models.itemknn import ItemKNNRecommender
+from src.models.popularity import PopularityRecommender
+from src.metrics import RankingMetrics
 from src.data import (
     InteractionDataLoader,
     TemporalLeaveOneOutSplitter,
     UserHistoryBuilder
 )
-from src.metrics import RankingMetrics
-from src.models.popularity import PopularityRecommender
-from src.models.itemknn import ItemKNNRecommender
-from src.models.als import ALSRecommender
+from src.config import Config
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(PROJECT_ROOT))
 
 
 class ValidationRunner:

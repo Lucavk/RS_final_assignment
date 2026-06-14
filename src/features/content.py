@@ -45,7 +45,8 @@ def build_content_tfidf(config, item_to_idx: dict, max_features: int = 30000,
         sublinear_tf=True,
         ngram_range=(1, 2),
     )
-    tfidf = vectorizer.fit_transform(docs)   # TF-IDF normalizes rows by default.
+    # TF-IDF normalizes rows by default.
+    tfidf = vectorizer.fit_transform(docs)
     print(f"Content: TF-IDF matrix {tfidf.shape}, nnz={tfidf.nnz:,}")
 
     return tfidf.astype(np.float32)

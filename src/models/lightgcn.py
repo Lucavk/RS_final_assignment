@@ -9,6 +9,7 @@ from src.config import RANDOM_SEED
 from src.data import DataBundle
 from src.models.base import Recommender
 
+
 class _LightGCNNet(nn.Module):
     def __init__(self, num_users, num_items, embedding_dim=128, num_layers=2):
         super().__init__()
@@ -22,7 +23,8 @@ class _LightGCNNet(nn.Module):
 
     def propagate(self, norm_adj):
         # Pass embeddings through the graph layers.
-        all_emb = torch.cat([self.user_embedding.weight, self.item_embedding.weight], dim=0)
+        all_emb = torch.cat([self.user_embedding.weight,
+                            self.item_embedding.weight], dim=0)
         embs = [all_emb]
         cur = all_emb
         for _ in range(self.num_layers):
@@ -37,6 +39,7 @@ class _LightGCNNet(nn.Module):
         pos_s = (u * ie[pos]).sum(-1)
         neg_s = (u * ie[neg]).sum(-1)
         return pos_s, neg_s
+
 
 class LightGCNRecommender(Recommender):
 
@@ -70,8 +73,8 @@ class LightGCNRecommender(Recommender):
     def _build_norm_adj(self, R, n_users, n_items):
         coo = R.tocoo()
         u = coo.row
-        item_node = n_users + coo.col # item nodes offset after users
-        rows = np.concatenate([u, item_node]) # symmetric edges
+        item_node = n_users + coo.col  # item nodes offset after users
+        rows = np.concatenate([u, item_node])  # symmetric edges
         cols = np.concatenate([item_node, u])
 
         n_nodes = n_users + n_items
@@ -93,20 +96,25 @@ class LightGCNRecommender(Recommender):
         n_users, n_items = bundle.n_users, bundle.n_items
         R = bundle.train_matrix.tocsr()
 
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         print(f"LightGCN: training on {self._device}  "
               f"(dim={self.embedding_dim}, layers={self.num_layers}, epochs={self.epochs})…")
 
-        self._norm_adj = self._build_norm_adj(R, n_users, n_items).to(self._device)
+        self._norm_adj = self._build_norm_adj(
+            R, n_users, n_items).to(self._device)
 
         # Store known user-item pairs for training.
         coo = R.tocoo()
         pos_users = coo.row.astype(np.int64)
         pos_items = coo.col.astype(np.int64)
-        user_pos = [set(R.indices[R.indptr[u]:R.indptr[u + 1]]) for u in range(n_users)]
+        user_pos = [set(R.indices[R.indptr[u]:R.indptr[u + 1]])
+                    for u in range(n_users)]
 
-        self._model = _LightGCNNet(n_users, n_items, self.embedding_dim, self.num_layers).to(self._device)
-        opt = torch.optim.Adam(self._model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        self._model = _LightGCNNet(
+            n_users, n_items, self.embedding_dim, self.num_layers).to(self._device)
+        opt = torch.optim.Adam(self._model.parameters(),
+                               lr=self.lr, weight_decay=self.weight_decay)
 
         n = len(pos_users)
         rng = np.random.default_rng(self.random_state)
@@ -130,14 +138,16 @@ class LightGCNRecommender(Recommender):
                 n_t = torch.from_numpy(neg).to(self._device)
 
                 opt.zero_grad()
-                pos_s, neg_s = self._model.bpr_scores(u_t, p_t, n_t, self._norm_adj)
+                pos_s, neg_s = self._model.bpr_scores(
+                    u_t, p_t, n_t, self._norm_adj)
                 loss = -F.logsigmoid(pos_s - neg_s).mean()
                 loss.backward()
                 opt.step()
                 total += loss.item() * len(b)
 
             if epoch % 10 == 0 or epoch == 1:
-                print(f"  epoch {epoch:02d}/{self.epochs}  BPR loss={total / n:.6f}")
+                print(
+                    f"  epoch {epoch:02d}/{self.epochs}  BPR loss={total / n:.6f}")
 
         # Cache embeddings so scoring is faster.
         self._model.eval()
@@ -154,7 +164,8 @@ class LightGCNRecommender(Recommender):
         with torch.no_grad():
             for start in range(0, len(user_idxs), self.score_batch_size):
                 idx = user_idxs[start:start + self.score_batch_size]
-                u = self._user_emb[torch.from_numpy(np.asarray(idx)).to(self._device)]
+                u = self._user_emb[torch.from_numpy(
+                    np.asarray(idx)).to(self._device)]
                 s = u @ self._item_emb.T
                 out[start:start + len(idx)] = s.cpu().numpy()
         return out

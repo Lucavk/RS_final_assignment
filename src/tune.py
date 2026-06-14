@@ -1,4 +1,9 @@
 from __future__ import annotations
+from src.metrics import compute_metrics
+from src.splits import fold_a, fold_b, val_targets_to_arrays
+from src.data import build_bundle, build_id_maps, load_all_data, load_train_only, load_submission_user_ids
+from src.config import Config, RANDOM_SEED
+import numpy as np
 
 import argparse
 import json
@@ -9,12 +14,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np
-
-from src.config import Config, RANDOM_SEED
-from src.data import build_bundle, build_id_maps, load_all_data, load_train_only, load_submission_user_ids
-from src.splits import fold_a, fold_b, val_targets_to_arrays
-from src.metrics import compute_metrics
 
 np.random.seed(RANDOM_SEED)
 
@@ -114,7 +113,7 @@ def make_objective(model_name, train_bundle, eval_user_idxs, target_item_idxs,
         else:
             model.fit(train_bundle)
 
-        scores  = model.score_users(eval_user_idxs)
+        scores = model.score_users(eval_user_idxs)
         metrics = compute_metrics(scores, target_item_idxs, user_seen_idxs)
         return metrics["recall@10"]
 
@@ -131,7 +130,8 @@ def tune(model_name: str, fold_name: str, n_trials: int, timeout: int | None = N
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-    print(f"\nTuning {model_name.upper()}  (fold={fold_name}, trials={n_trials})")
+    print(
+        f"\nTuning {model_name.upper()}  (fold={fold_name}, trials={n_trials})")
     print("Loading train.csv only (honest validation)...")
     df_full = load_train_only(Config)  # no time-leak from test.csv
     sub_ids = load_submission_user_ids(Config)
@@ -148,7 +148,8 @@ def tune(model_name: str, fold_name: str, n_trials: int, timeout: int | None = N
             selected = rng.choice(len(user_list), 5000, replace=False)
             user_list = [user_list[i] for i in selected]
             val_targets = {u: val_targets[u] for u in user_list}
-            print(f"  (subsampled fold B to {len(val_targets):,} users for tuning)")
+            print(
+                f"  (subsampled fold B to {len(val_targets):,} users for tuning)")
 
     train_bundle = build_bundle(
         train_df, user_to_idx, idx_to_user, item_to_idx, idx_to_item, sub_ids
@@ -226,9 +227,9 @@ def main():
     args = parser.parse_args()
 
     n_trials = args.n_trials if args.n_trials is not None \
-               else Config.TUNE_N_TRIALS.get(args.model, 20)
-    timeout  = args.timeout  if args.timeout  is not None \
-               else Config.TUNE_TIMEOUT.get(args.model, None)
+        else Config.TUNE_N_TRIALS.get(args.model, 20)
+    timeout = args.timeout if args.timeout is not None \
+        else Config.TUNE_TIMEOUT.get(args.model, None)
 
     tune(args.model, args.fold, n_trials, timeout)
 

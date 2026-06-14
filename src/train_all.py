@@ -1,4 +1,17 @@
 from __future__ import annotations
+from src.evaluate import print_leaderboard
+from src.metrics import compute_metrics
+from src.splits import fold_a, fold_b, val_targets_to_arrays
+from src.data import (
+    DataBundle,
+    build_bundle,
+    build_id_maps,
+    load_all_data,
+    load_train_only,
+    load_submission_user_ids,
+)
+from src.config import Config, RANDOM_SEED
+import numpy as np
 
 import argparse
 import json
@@ -9,20 +22,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np
-
-from src.config import Config, RANDOM_SEED
-from src.data import (
-    DataBundle,
-    build_bundle,
-    build_id_maps,
-    load_all_data,
-    load_train_only,
-    load_submission_user_ids,
-)
-from src.splits import fold_a, fold_b, val_targets_to_arrays
-from src.metrics import compute_metrics
-from src.evaluate import print_leaderboard
 
 np.random.seed(RANDOM_SEED)
 
@@ -39,7 +38,8 @@ def save_scores(
 ) -> None:
     scores_dir.mkdir(parents=True, exist_ok=True)
     np.save(scores_dir / f"{model_name}_{fold}.npy", score_matrix)
-    meta = {"target_item_idxs": target_item_idxs, "user_seen_idxs": user_seen_idxs}
+    meta = {"target_item_idxs": target_item_idxs,
+            "user_seen_idxs": user_seen_idxs}
     with open(scores_dir / f"{model_name}_{fold}_meta.pkl", "wb") as f:
         pickle.dump(meta, f, protocol=4)
 
@@ -64,7 +64,8 @@ def build_model(model_name: str, params: dict | None = None):
     if model_name == "popularity":
         from src.models.popularity import PopularityRecommender
         return PopularityRecommender(
-            halflife_days=p.get("halflife_days", Config.POPULARITY_HALFLIFE_DAYS)
+            halflife_days=p.get(
+                "halflife_days", Config.POPULARITY_HALFLIFE_DAYS)
         )
     if model_name == "itemknn":
         from src.models.itemknn import ItemKNNRecommender
@@ -230,7 +231,8 @@ def run(fold_name: str = "a", model_names: list | None = None, df_full=None,
         print(f"  score time: {t_score:.1f}s  "
               f"(matrix: {score_matrix.shape}, {score_matrix.nbytes / 1e6:.0f} MB)")
 
-        metrics = compute_metrics(score_matrix, target_item_idxs, user_seen_idxs)
+        metrics = compute_metrics(
+            score_matrix, target_item_idxs, user_seen_idxs)
         results[model_name] = metrics
         print(f"  recall@10={metrics['recall@10']:.6f}  "
               f"ndcg@10={metrics['ndcg@10']:.6f}")
@@ -240,7 +242,8 @@ def run(fold_name: str = "a", model_names: list | None = None, df_full=None,
             score_matrix, target_item_idxs, user_seen_idxs,
             Config.SCORES_DIR,
         )
-        print(f"  -> scores cached to artifacts/scores/{model_name}_{fold_name}.npy")
+        print(
+            f"  -> scores cached to artifacts/scores/{model_name}_{fold_name}.npy")
 
     print()
     print_leaderboard(results, fold=fold_name)

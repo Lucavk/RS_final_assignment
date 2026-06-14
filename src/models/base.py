@@ -7,6 +7,7 @@ import numpy as np
 
 from src.data import DataBundle
 
+
 class Recommender(ABC):
 
     @abstractmethod
@@ -32,13 +33,13 @@ class Recommender(ABC):
         user_to_idx = getattr(self, "user_to_idx", {})
         item_to_idx = getattr(self, "item_to_idx", {})
         idx_to_item = getattr(self, "idx_to_item", {})
-        n_items     = getattr(self, "n_items", 0)
+        n_items = getattr(self, "n_items", 0)
 
         if user_id not in user_to_idx or n_items == 0:
             return self._fallback_recommend(seen_items, k)
 
         user_idx = user_to_idx[user_id]
-        scores   = self.score_users(np.array([user_idx], dtype=np.int32))[0]
+        scores = self.score_users(np.array([user_idx], dtype=np.int32))[0]
 
         # Mask seen items
         seen_idxs = [item_to_idx[i] for i in seen_items if i in item_to_idx]
@@ -60,5 +61,5 @@ class Recommender(ABC):
         self.idx_to_user = bundle.idx_to_user
         self.item_to_idx = bundle.item_to_idx
         self.idx_to_item = bundle.idx_to_item
-        self.n_users     = bundle.n_users
-        self.n_items     = bundle.n_items
+        self.n_users = bundle.n_users
+        self.n_items = bundle.n_items

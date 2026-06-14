@@ -1,4 +1,7 @@
 from __future__ import annotations
+from src.metrics import compute_metrics
+from src.config import Config
+import numpy as np
 
 import pickle
 import sys
@@ -8,11 +11,6 @@ from typing import Dict
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np
-
-from src.config import Config
-from src.metrics import compute_metrics
-
 
 def load_scores(model_name: str, fold: str, scores_dir: Path | None = None):
     # Load a cached score matrix and its evaluation metadata
@@ -20,7 +18,7 @@ def load_scores(model_name: str, fold: str, scores_dir: Path | None = None):
         scores_dir = Config.SCORES_DIR
 
     scores_path = scores_dir / f"{model_name}_{fold}.npy"
-    meta_path   = scores_dir / f"{model_name}_{fold}_meta.pkl"
+    meta_path = scores_dir / f"{model_name}_{fold}_meta.pkl"
 
     if not scores_path.exists():
         raise FileNotFoundError(f"Score matrix not found: {scores_path}\n"
@@ -42,7 +40,8 @@ def evaluate_model(model_name: str, fold: str, k: int = 10) -> Dict[str, float]:
 def print_leaderboard(results: Dict[str, Dict[str, float]], fold: str, k: int = 10):
     # Print a sorted results table
     col = f"recall@{k}"
-    sorted_results = sorted(results.items(), key=lambda x: x[1].get(col, 0), reverse=True)
+    sorted_results = sorted(
+        results.items(), key=lambda x: x[1].get(col, 0), reverse=True)
 
     header = f"{'Model':<14}  {'Recall@'+str(k):>10}  {'NDCG@'+str(k):>10}"
     print()

@@ -8,6 +8,7 @@ from scipy.sparse import csr_matrix
 from src.data import DataBundle
 from src.models.base import Recommender
 
+
 class RecencyTransitionRecommender(Recommender):
 
     def __init__(
@@ -65,7 +66,8 @@ class RecencyTransitionRecommender(Recommender):
         self._T = csr_matrix((vals, (rows, cols)), shape=(n_items, n_items))
 
         # Optionally reduce scores for very popular items.
-        pop = np.asarray(bundle.train_matrix.sum(axis=0)).ravel().astype(np.float32)
+        pop = np.asarray(bundle.train_matrix.sum(
+            axis=0)).ravel().astype(np.float32)
         if self.pop_discount > 0:
             self._pop_factor = 1.0 / np.power(pop + 1.0, self.pop_discount)
         else:

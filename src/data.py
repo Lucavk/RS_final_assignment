@@ -24,7 +24,8 @@ class DataBundle:
     n_items: int
     # Submission users from sample_submission.csv
     submission_user_ids: List = field(default_factory=list)
-    submission_user_idxs: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.int32))
+    submission_user_idxs: np.ndarray = field(
+        default_factory=lambda: np.array([], dtype=np.int32))
 
 
 # Loading.
@@ -40,8 +41,8 @@ def _load_interactions(path: Path) -> pd.DataFrame:
                     if k in ("user_id", "userid", "user", "uid", "reviewerid"))
     item_col = next(c for k, c in col_map.items()
                     if k in ("item_id", "itemid", "item", "iid", "asin", "product_id"))
-    ts_col   = next(c for k, c in col_map.items()
-                    if k in ("timestamp", "time", "unixreviewtime", "date", "datetime"))
+    ts_col = next(c for k, c in col_map.items()
+                  if k in ("timestamp", "time", "unixreviewtime", "date", "datetime"))
 
     df = df[[user_col, item_col, ts_col]].copy()
     df.columns = ["user_id", "item_id", "timestamp"]
@@ -70,7 +71,7 @@ def load_train_only(config) -> pd.DataFrame:
 def load_all_data(config) -> pd.DataFrame:
     # Use train.csv + test.csv for the final submission
     train_df = _load_interactions(config.TRAIN_PATH)
-    test_df  = _load_interactions(config.TEST_PATH)
+    test_df = _load_interactions(config.TEST_PATH)
 
     df = pd.concat([train_df, test_df], ignore_index=True)
 
@@ -126,13 +127,14 @@ def build_bundle(
     # Build the sparse user-item matrix.
     u_idxs = df["user_id"].map(user_to_idx).to_numpy(dtype=np.int32)
     i_idxs = df["item_id"].map(item_to_idx).to_numpy(dtype=np.int32)
-    vals   = np.ones(len(df), dtype=np.float32)
+    vals = np.ones(len(df), dtype=np.float32)
 
-    train_matrix = csr_matrix((vals, (u_idxs, i_idxs)), shape=(n_users, n_items))
+    train_matrix = csr_matrix((vals, (u_idxs, i_idxs)),
+                              shape=(n_users, n_items))
 
     # Build per-user sequences and seen-item sets
     user_sequences: Dict[int, List[int]] = {}
-    user_seen_idxs: Dict[int, Set[int]]  = {}
+    user_seen_idxs: Dict[int, Set[int]] = {}
 
     for uid, group in df.groupby("user_id", sort=False):
         u_idx = user_to_idx[uid]

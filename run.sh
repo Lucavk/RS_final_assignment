@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
-# Full pipeline: tune → train → blend → submit
-# Run from the project root:   bash run.sh
-#
-# Pick GPU 1 if GPU 0 is busy:  CUDA_VISIBLE_DEVICES=1 bash run.sh
-# ─────────────────────────────────────────────────────────────────────────────
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

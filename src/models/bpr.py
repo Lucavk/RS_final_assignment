@@ -9,6 +9,7 @@ from src.models.base import Recommender
 
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
+
 class BPRRecommender(Recommender):
 
     def __init__(
@@ -19,11 +20,11 @@ class BPRRecommender(Recommender):
         iterations: int = 100,
         random_state: int = 42,
     ):
-        self.factors        = factors
-        self.learning_rate  = learning_rate
+        self.factors = factors
+        self.learning_rate = learning_rate
         self.regularization = regularization
-        self.iterations     = iterations
-        self.random_state   = random_state
+        self.iterations = iterations
+        self.random_state = random_state
 
         self._user_factors: np.ndarray | None = None
         self._item_factors: np.ndarray | None = None
@@ -32,7 +33,8 @@ class BPRRecommender(Recommender):
         try:
             from implicit.bpr import BayesianPersonalizedRanking
         except ImportError as e:
-            raise ImportError("Install 'implicit':  pip install implicit") from e
+            raise ImportError(
+                "Install 'implicit':  pip install implicit") from e
 
         self._store_id_maps(bundle)
 

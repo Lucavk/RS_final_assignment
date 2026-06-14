@@ -1,4 +1,12 @@
 from __future__ import annotations
+from src.train_all import build_model
+from src.submit import rrf_blend, top_k_with_fallback
+from src.ensemble.blend import precompute_rrf, fast_recall, blend_weighted
+from src.evaluate import load_scores
+from src.data import build_bundle, build_id_maps, load_all_data, load_submission_user_ids
+from src.config import Config, RANDOM_SEED
+import pandas as pd
+import numpy as np
 
 import argparse
 import sys
@@ -7,15 +15,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import numpy as np
-import pandas as pd
-
-from src.config import Config, RANDOM_SEED
-from src.data import build_bundle, build_id_maps, load_all_data, load_submission_user_ids
-from src.evaluate import load_scores
-from src.ensemble.blend import precompute_rrf, fast_recall, blend_weighted
-from src.submit import rrf_blend, top_k_with_fallback
-from src.train_all import build_model
 
 np.random.seed(RANDOM_SEED)
 
@@ -50,10 +49,14 @@ def run(model_names, rrf_ks, n_trials, max_eval_users, out_dir):
     b_scores, tgt_b, seen_b = {}, None, None
     a_scores, tgt_a, seen_a = {}, None, None
     for m in model_names:
-        s, t, se = load_scores(m, "b"); b_scores[m] = s
-        if tgt_b is None: tgt_b, seen_b = t, se
-        s, t, se = load_scores(m, "a"); a_scores[m] = s
-        if tgt_a is None: tgt_a, seen_a = t, se
+        s, t, se = load_scores(m, "b")
+        b_scores[m] = s
+        if tgt_b is None:
+            tgt_b, seen_b = t, se
+        s, t, se = load_scores(m, "a")
+        a_scores[m] = s
+        if tgt_a is None:
+            tgt_a, seen_a = t, se
 
     # Subsample Fold B for fast weight tuning.
     n_b = b_scores[model_names[0]].shape[0]
@@ -71,7 +74,8 @@ def run(model_names, rrf_ks, n_trials, max_eval_users, out_dir):
     u2i, i2u, it2i, i2it = build_id_maps(df_full)
     full_bundle = build_bundle(df_full, u2i, i2u, it2i, i2it, sub_ids)
     sub_idxs = np.array([u2i[u] for u in sub_ids if u in u2i], dtype=np.int32)
-    seen_sub = [full_bundle.user_seen_idxs.get(int(u), set()) for u in sub_idxs]
+    seen_sub = [full_bundle.user_seen_idxs.get(
+        int(u), set()) for u in sub_idxs]
 
     sub_scores, pop_scores = {}, None
     for m in model_names:
@@ -114,7 +118,8 @@ def run(model_names, rrf_ks, n_trials, max_eval_users, out_dir):
 
         # Write the submission file
         blended = rrf_blend([sub_scores[m] for m in subset], weights, rrf_k=k)
-        recs = top_k_with_fallback(blended, seen_sub, pop_scores, i2it, k=Config.K)
+        recs = top_k_with_fallback(
+            blended, seen_sub, pop_scores, i2it, k=Config.K)
         _write_submission(recs, sub_ids, u2i, out_dir / f"{name}.csv")
 
         results.append((name, recall_a))
@@ -131,7 +136,8 @@ def run(model_names, rrf_ks, n_trials, max_eval_users, out_dir):
     for i, (name, r) in enumerate(results, 1):
         print(f"{i:2d}. {name:<22} {r:.6f}")
     print("=" * 50)
-    print(f"\nSubmissions in {out_dir}/  -  submit the top few by Fold-A score.")
+    print(
+        f"\nSubmissions in {out_dir}/  -  submit the top few by Fold-A score.")
 
 
 def _write_submission(recs_list, sub_ids, user_to_idx, path):
@@ -148,12 +154,14 @@ def _write_submission(recs_list, sub_ids, user_to_idx, path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--models", nargs="+", default=Config.ENSEMBLE_MODELS)
-    parser.add_argument("--rrf_ks", nargs="+", type=int, default=[20, 40, 60, 100])
+    parser.add_argument("--rrf_ks", nargs="+", type=int,
+                        default=[20, 40, 60, 100])
     parser.add_argument("--n_trials", type=int, default=200)
     parser.add_argument("--max_eval_users", type=int, default=10000)
     parser.add_argument("--out_dir", default=str(Config.DATA_DIR / "sweep"))
     args = parser.parse_args()
-    run(args.models, args.rrf_ks, args.n_trials, args.max_eval_users, Path(args.out_dir))
+    run(args.models, args.rrf_ks, args.n_trials,
+        args.max_eval_users, Path(args.out_dir))
 
 
 if __name__ == "__main__":

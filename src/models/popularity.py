@@ -5,6 +5,7 @@ import numpy as np
 from src.data import DataBundle
 from src.models.base import Recommender
 
+
 class PopularityRecommender(Recommender):
 
     def __init__(self, halflife_days: float | None = 365):
@@ -16,7 +17,8 @@ class PopularityRecommender(Recommender):
 
         # Without timestamps, just count interactions per item.
         # Instead, use interaction counts from the matrix
-        counts = np.asarray(bundle.train_matrix.sum(axis=0)).ravel().astype(np.float32)
+        counts = np.asarray(bundle.train_matrix.sum(axis=0)
+                            ).ravel().astype(np.float32)
         self._item_scores = counts
         return self
 
@@ -53,7 +55,8 @@ class PopularityRecommender(Recommender):
         if self._item_scores is None:
             return []
         scores = self._item_scores.copy()
-        seen_idxs = [self.item_to_idx[i] for i in seen_items if i in self.item_to_idx]
+        seen_idxs = [self.item_to_idx[i]
+                     for i in seen_items if i in self.item_to_idx]
         if seen_idxs:
             scores[seen_idxs] = -np.inf
         top_k = np.argpartition(scores, -k)[-k:]

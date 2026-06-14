@@ -56,6 +56,6 @@ def val_targets_to_arrays(val_targets: Dict, user_to_idx: dict, item_to_idx: dic
     if not pairs:
         return np.array([], dtype=np.int32), []
 
-    eval_user_idxs   = np.array([p[0] for p in pairs], dtype=np.int32)
+    eval_user_idxs = np.array([p[0] for p in pairs], dtype=np.int32)
     target_item_idxs = [p[1] for p in pairs]
     return eval_user_idxs, target_item_idxs
